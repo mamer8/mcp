@@ -381,47 +381,52 @@ class _StoreMainScreenState extends State<StoreMainScreen> {
           _buildOrdersTab(),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentTabIndex,
-        onDestinationSelected: (idx) => setState(() => _currentTabIndex = idx),
-        destinations: [
-          const NavigationDestination(
-            key: Key('nav_home'),
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'الرئيسية',
-          ),
-          NavigationDestination(
-            key: const Key('nav_favorites'),
-            icon: Badge(
-              isLabelVisible: _favoriteProductIds.isNotEmpty,
-              label: Text('${_favoriteProductIds.length}'),
-              child: const Icon(Icons.favorite_border),
+      bottomNavigationBar: ClipRect(
+        child: NavigationBar(
+          selectedIndex: _currentTabIndex,
+          onDestinationSelected: (idx) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            setState(() => _currentTabIndex = idx);
+          },
+          destinations: [
+            const NavigationDestination(
+              key: Key('nav_home'),
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'الرئيسية',
             ),
-            selectedIcon: const Icon(Icons.favorite),
-            label: 'المفضلة',
-          ),
-          NavigationDestination(
-            key: const Key('nav_cart'),
-            icon: Badge(
-              isLabelVisible: _cartItemCount > 0,
-              label: Text('$_cartItemCount'),
-              child: const Icon(Icons.shopping_cart_outlined),
+            NavigationDestination(
+              key: const Key('nav_favorites'),
+              icon: Badge(
+                isLabelVisible: _favoriteProductIds.isNotEmpty,
+                label: Text('${_favoriteProductIds.length}'),
+                child: const Icon(Icons.favorite_border),
+              ),
+              selectedIcon: const Icon(Icons.favorite),
+              label: 'المفضلة',
             ),
-            selectedIcon: const Icon(Icons.shopping_cart),
-            label: 'السلة',
-          ),
-          NavigationDestination(
-            key: const Key('nav_orders'),
-            icon: Badge(
-              isLabelVisible: _ordersHistory.isNotEmpty,
-              label: Text('${_ordersHistory.length}'),
-              child: const Icon(Icons.receipt_long_outlined),
+            NavigationDestination(
+              key: const Key('nav_cart'),
+              icon: Badge(
+                isLabelVisible: _cartItemCount > 0,
+                label: Text('$_cartItemCount'),
+                child: const Icon(Icons.shopping_cart_outlined),
+              ),
+              selectedIcon: const Icon(Icons.shopping_cart),
+              label: 'السلة',
             ),
-            selectedIcon: const Icon(Icons.receipt_long),
-            label: 'طلباتي',
-          ),
-        ],
+            NavigationDestination(
+              key: const Key('nav_orders'),
+              icon: Badge(
+                isLabelVisible: _ordersHistory.isNotEmpty,
+                label: Text('${_ordersHistory.length}'),
+                child: const Icon(Icons.receipt_long_outlined),
+              ),
+              selectedIcon: const Icon(Icons.receipt_long),
+              label: 'طلباتي',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -798,7 +803,7 @@ class _StoreMainScreenState extends State<StoreMainScreen> {
 
         // Cart Summary & Checkout Bottom Bar
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
@@ -809,41 +814,40 @@ class _StoreMainScreenState extends State<StoreMainScreen> {
               ),
             ],
           ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('الإجمالي الكلي:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text(
-                      '\$${_cartTotalAmount.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('الإجمالي الكلي:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(
+                    '\$${_cartTotalAmount.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton(
-                    key: const Key('btn_checkout_open'),
-                    onPressed: () => _showCheckoutBottomSheet(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: const Text('إتمام الطلب (Checkout) 🛍️', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  key: const Key('btn_checkout_open'),
+                  onPressed: () => _showCheckoutBottomSheet(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('إتمام الطلب (Checkout) 🛍️', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ],
