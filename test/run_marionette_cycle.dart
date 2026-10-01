@@ -42,6 +42,10 @@ void main(List<String> args) async {
   }
 
   try {
+    // 0. Ensure on Home tab
+    print('\n[Step 0] Navigating to Home tab...');
+    await tapKey('nav_home');
+
     // 1. Filter Category: Electronics
     print('\n[Step 1] Filtering by category "Electronics"...');
     await tapKey('chip_category_Electronics');

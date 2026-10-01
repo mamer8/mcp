@@ -1,21 +1,155 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:mcp/main.dart';
+import 'package:mcp/data/demo_products.dart';
+import 'package:mcp/models/product.dart';
+import 'package:mcp/models/sketchfab_model.dart';
+import 'package:mcp/services/sketchfab_catalog_service.dart';
+
+Future<List<SketchfabModel>> _emptyModelLoader(Product product) async =>
+    const [];
 
 void main() {
-  testWidgets('QuickStore Full Application E2E Shopping Cycle Test', (WidgetTester tester) async {
+  test(
+    'Sketchfab search keeps matching open models and filters unsuitable assets',
+    () async {
+      final client = MockClient((request) async {
+        expect(request.url.queryParameters['license'], 'by');
+        expect(request.url.queryParameters['downloadable'], 'true');
+        return http.Response(
+          jsonEncode({
+            'results': [
+              {
+                'uid': 'iphone-13-pro',
+                'name': 'iPhone 13 Pro',
+                'likeCount': 12,
+                'viewCount': 240,
+                'embedUrl': 'https://sketchfab.com/models/iphone-13-pro/embed',
+                'viewerUrl': 'https://sketchfab.com/3d-models/iphone-13-pro',
+                'tags': [
+                  {'name': 'iphone13pro'},
+                ],
+                'user': {
+                  'displayName': 'Demo Creator',
+                  'profileUrl': 'https://sketchfab.com/demo-creator',
+                },
+                'license': {'label': 'CC Attribution'},
+                'thumbnails': {
+                  'images': [
+                    {'url': 'https://example.com/iphone.webp'},
+                  ],
+                },
+              },
+              {
+                'uid': 'museum-scan',
+                'name': 'Egyptian Museum Scan',
+                'tags': [],
+                'description': 'Captured using an iPhone 13 Pro',
+                'license': {'label': 'CC Attribution'},
+              },
+              {
+                'uid': 'ai-iphone',
+                'name': 'iPhone 13 Pro AI Generated',
+                'tags': [
+                  {'name': 'iphone13pro'},
+                  {'name': 'ai-generated'},
+                ],
+                'archives': {
+                  'glb': {'size': 1024},
+                },
+              },
+              {
+                'uid': 'oversized-iphone',
+                'name': 'iPhone 13 Pro Oversized',
+                'tags': [],
+                'archives': {
+                  'glb': {'size': 60 * 1024 * 1024},
+                },
+              },
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      final service = SketchfabCatalogService(client: client);
+
+      final models = await service.searchModels(
+        demoProducts.firstWhere((product) => product.id == 'p9'),
+      );
+
+      expect(models, hasLength(1));
+      expect(models.single.name, 'iPhone 13 Pro');
+      expect(models.single.authorName, 'Demo Creator');
+      expect(models.single.license, 'CC Attribution');
+      client.close();
+    },
+  );
+
+  test('Sketchfab matching rejects partial title matches', () async {
+    final client = MockClient(
+      (_) async => http.Response(
+        jsonEncode({
+          'results': [
+            {
+              'uid': 'table-model',
+              'name': 'Low Poly Table for Mockups',
+              'tags': [
+                {'name': 'tablet'},
+              ],
+            },
+            {
+              'uid': 'tablet-model',
+              'name': 'Modern Tablet 3D Model',
+              'tags': [],
+            },
+          ],
+        }),
+        200,
+      ),
+    );
+    final service = SketchfabCatalogService(client: client);
+
+    final models = await service.searchModels(
+      demoProducts.firstWhere((product) => product.id == 'p5'),
+    );
+
+    expect(models.map((model) => model.uid), ['tablet-model']);
+    client.close();
+  });
+
+  testWidgets('QuickStore Full Application E2E Shopping Cycle Test', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
 
     // 1. Launch the application
-    await tester.pumpWidget(const StoreApp());
+    await tester.pumpWidget(
+      StoreApp(home: StoreMainScreen(modelLoader: _emptyModelLoader)),
+    );
     await tester.pumpAndSettle();
 
     // Verify home screen and products loaded
     expect(find.text('QuickStore'), findsOneWidget);
     expect(find.text('Wireless Headphones'), findsOneWidget);
     expect(find.text('Smart Watch Series 8'), findsOneWidget);
+
+    // Open product details and verify the no-match fallback.
+    await tester.tap(find.byKey(const Key('btn_product_details_p1')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('لم يتم العثور على موديل 3D مفتوح ومطابق لهذا المنتج.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('btn_detail_add_to_cart')), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     // 2. Filter by Category: Electronics
     final electronicsChip = find.byKey(const Key('chip_category_Electronics'));
@@ -25,12 +159,21 @@ void main() {
 
     // Verify Electronics products visible, others filtered out
     expect(find.text('Ultra-Slim Tablet 11"'), findsOneWidget);
+    expect(find.text('iPhone 13 Pro'), findsOneWidget);
+    expect(find.text('Samsung Galaxy S10'), findsOneWidget);
     expect(find.text('Wireless Headphones'), findsNothing);
 
     // Reset filter to All
     await tester.tap(find.byKey(const Key('chip_category_All')));
     await tester.pumpAndSettle();
     expect(find.text('Wireless Headphones'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('chip_category_Audio')));
+    await tester.pumpAndSettle();
+    expect(find.text('Apple AirPods'), findsOneWidget);
+    expect(find.text('Apple AirPods Max Silver'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('chip_category_All')));
+    await tester.pumpAndSettle();
 
     // 3. Search for a product
     final searchField = find.byKey(const Key('input_search_products'));
